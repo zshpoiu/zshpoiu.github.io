@@ -238,7 +238,29 @@
           </div>
           <div>
             <label for="fApi">API 地址 <span class="req">*</span></label>
-            <input type="text" id="fApi" class="mono" placeholder="https://api.openai.com/v1" maxlength="500">
+            <input type="text" id="fApi" class="mono" list="apiBaseList" placeholder="api.deepseek.com" maxlength="500" autocomplete="off">
+            <datalist id="apiBaseList">
+              <option value="https://api.openai.com/v1"></option>
+              <option value="https://api.deepseek.com/v1"></option>
+              <option value="https://api.anthropic.com"></option>
+              <option value="https://generativelanguage.googleapis.com"></option>
+              <option value="https://api.moonshot.cn/v1"></option>
+              <option value="https://open.bigmodel.cn/api/paas/v4"></option>
+              <option value="https://dashscope.aliyuncs.com/compatible-mode/v1"></option>
+              <option value="https://api.siliconflow.cn/v1"></option>
+              <option value="https://ark.cn-beijing.volces.com/api/v3"></option>
+              <option value="https://api.groq.com/openai/v1"></option>
+              <option value="https://api.mistral.ai/v1"></option>
+              <option value="https://openrouter.ai/api/v1"></option>
+              <option value="https://api.cohere.ai/v1"></option>
+              <option value="https://api.perplexity.ai"></option>
+              <option value="https://api.x.ai/v1"></option>
+              <option value="https://api.stepfun.com/v1"></option>
+              <option value="https://api.baichuan-ai.com/v1"></option>
+              <option value="https://api.hunyuan.tencent.com/v1"></option>
+              <option value="https://qianfan.baidubce.com"></option>
+            </datalist>
+            <div class="hint">漏写 https:// 也会自动补；输入服务商域名后离开输入框，会换成规范地址</div>
           </div>
           <div class="full">
             <label for="fNote">站点备注</label>
@@ -442,6 +464,70 @@ var PROBE_PRESETS = [
   { host:/hunyuan\.tencentcloudapi\.com|api\.hunyuan\.tencent\.com/, path:'/v1/models', auth:'bearer' },
   { host:/qianfan\.baidubce\.com|aip\.baidubce\.com/, path:'/v2/models', auth:'bearer' }
 ];
+/* 常见服务商的规范 API 地址。base 必须与上面 PROBE_PRESETS 的探测路径配套：
+   预设路径是拼在 base 之后的，base 里已经带了版本段就不能重复。 */
+var API_BASE_PRESETS = [
+  { host:/api\.openai\.com/,                    base:'https://api.openai.com/v1' },
+  { host:/api\.deepseek\.com/,                  base:'https://api.deepseek.com/v1' },
+  { host:/api\.anthropic\.com/,                 base:'https://api.anthropic.com' },
+  { host:/generativelanguage\.googleapis\.com/,base:'https://generativelanguage.googleapis.com' },
+  { host:/api\.moonshot\.cn/,                  base:'https://api.moonshot.cn/v1' },
+  { host:/open\.bigmodel\.cn/,                 base:'https://open.bigmodel.cn/api/paas/v4' },
+  { host:/dashscope\.aliyuncs\.com/,           base:'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { host:/api\.siliconflow\.cn/,               base:'https://api.siliconflow.cn/v1' },
+  { host:/ark\.cn-beijing\.volces\.com/,       base:'https://ark.cn-beijing.volces.com/api/v3' },
+  { host:/api\.groq\.com/,                     base:'https://api.groq.com/openai/v1' },
+  { host:/api\.mistral\.ai/,                   base:'https://api.mistral.ai/v1' },
+  { host:/openrouter\.ai/,                     base:'https://openrouter.ai/api/v1' },
+  { host:/api\.cohere\.ai/,                    base:'https://api.cohere.ai/v1' },
+  { host:/api\.perplexity\.ai/,                base:'https://api.perplexity.ai' },
+  { host:/api\.x\.ai/,                         base:'https://api.x.ai/v1' },
+  { host:/api\.stepfun\.com/,                  base:'https://api.stepfun.com/v1' },
+  { host:/api\.baichuan-ai\.com/,              base:'https://api.baichuan-ai.com/v1' },
+  { host:/api\.hunyuan\.tencent\.com/,         base:'https://api.hunyuan.tencent.com/v1' },
+  { host:/hunyuan\.tencentcloudapi\.com/,      base:'https://hunyuan.tencentcloudapi.com' },
+  { host:/qianfan\.baidubce\.com|aip\.baidubce\.com/, base:'https://qianfan.baidubce.com' }
+];
+function basePresetFor(text){
+  var s = String(text || '').toLowerCase();
+  if(!s) return null;
+  for(var i=0;i<API_BASE_PRESETS.length;i++){
+    if(API_BASE_PRESETS[i].host.test(s)) return API_BASE_PRESETS[i];
+  }
+  return null;
+}
+
+/* 地址规范化：补 scheme、纠正大小写、已知服务商换成规范 base。
+   只在失焦时执行，避免边打字边改写打断输入。 */
+function normalizeApiInput(input, silent){
+  var raw = String(input.value || '').trim();
+  if(!raw) return false;
+  var before = raw;
+  var val = raw;
+  // 漏写 scheme 时补 https://（localhost / 127.0.0.1 用 http）
+  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(val)){
+    val = (/^(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(val) ? 'http://' : 'https://') + val;
+  }
+  val = val.replace(/\s+/g, '');
+  // 主机名统一小写（路径大小写敏感，保持原样）
+  try{
+    var u0 = new URL(val);
+    val = u0.protocol + '//' + u0.host.toLowerCase() + u0.pathname + u0.search + u0.hash;
+  }catch(e){}
+  // 已知服务商：整体换成规范 base，但保留用户自己写的查询串（如 Gemini 的 ?key=）
+  var p = basePresetFor(val);
+  if(p){
+    var query = '';
+    try{ query = new URL(val).search || ''; }catch(e){ query = ''; }
+    val = p.base + query;
+  }
+  val = val.replace(/\/+$/, '');
+  if(val === before) return false;
+  input.value = val;
+  if(!silent) toast('已补全为 ' + val);
+  return true;
+}
+
 function presetFor(api){
   var url = String(api || '');
   for(var i=0;i<PROBE_PRESETS.length;i++){
@@ -1124,6 +1210,16 @@ function startEditSite(id){
 }
 
 $('#btnAddKeyRow').addEventListener('click', function(){ addKeyRow(); });
+
+/* API 地址输入：失焦自动补全。change 覆盖「点走」和回车，blur 兜底 */
+(function(){
+  var inp = $('#fApi');
+  if(!inp) return;
+  inp.addEventListener('change', function(){ normalizeApiInput(inp); });
+  inp.addEventListener('blur',   function(){ normalizeApiInput(inp); });
+  // Enter 直接提交表单，补全就交给 change 处理
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ normalizeApiInput(inp, true); } });
+})();
 
 $('#keyRows').addEventListener('click', function(e){
   if(e.target.closest('.eye')){

@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API 密钥保险箱</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --line:#e3e8ef; --line-2:#eef2f7;
+    --text:#1c2431; --text-2:#5a6678; --text-3:#98a2b3;
+    --accent:#2f6fed; --accent-soft:#eaf1fe; --accent-line:#c3d7fb;
+    --danger:#d93b3b; --danger-soft:#fdeceb;
+    --ok:#0f9d58;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); font-size:14px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#3b7bf0,#2456c9);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  h1{font-size:17px;font-weight:650;letter-spacing:.2px}
+  .sub{font-size:12px;color:var(--text-3);margin-top:1px}
+  .head-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .proxy-flag{font-size:11.5px;font-weight:600;border-radius:20px;padding:3px 11px;
+    border:1px solid var(--line);white-space:nowrap;cursor:default}
+  .proxy-flag.on{color:#0b7a45;background:#e8f7ef;border-color:#b9e3cd}
+  .proxy-flag.off{color:#8a5704;background:#fef6e4;border-color:#f7dfa8}
+
+  button{font-family:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);
+    background:#fff;color:var(--text);padding:7px 13px;border-radius:8px;
+    transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+  button:hover{background:#f8fafc;border-color:#cbd5e1}
+  button:active{transform:translateY(.5px)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+  button.primary:hover{background:#2059d0;border-color:#2059d0}
+  button.ghost-danger{color:var(--danger)}
+  button.ghost-danger:hover{background:var(--danger-soft);border-color:#f3c3c0}
+  button.ghost-ok{color:var(--ok)}
+  button.ghost-ok:hover{background:#eaf7f0;border-color:#b9e3cd}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.icon{padding:5px 9px;border-radius:7px;font-size:12px}
+  button.tiny{padding:3px 8px;border-radius:6px;font-size:11.5px}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;
+    padding:13px 18px;border-bottom:1px solid var(--line-2)}
+  .panel-h h2{font-size:13.5px;font-weight:600;color:var(--text-2);letter-spacing:.2px}
+  .panel-b{padding:18px}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .full{grid-column:1/-1}
+  label{display:block;font-size:12.5px;color:var(--text-2);margin-bottom:5px;font-weight:500}
+  label .req{color:var(--danger)}
+  input,textarea,select{width:100%;font-family:inherit;font-size:13.5px;color:var(--text);
+    background:#fcfdfe;border:1px solid var(--line);border-radius:8px;padding:9px 11px;
+    transition:border-color .15s,box-shadow .15s,background .15s}
+  input:focus,textarea:focus,select:focus{outline:none;background:#fff;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(47,111,237,.12)}
+  textarea{resize:vertical;min-height:60px;line-height:1.5}
+  input::placeholder,textarea::placeholder{color:#b6bfcc}
+  .mono{font-family:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:13px}
+  .hint{font-size:11.5px;color:var(--text-3);margin-top:4px}
+  .form-foot{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .form-foot .grow{flex:1}
+
+  .pw{position:relative}
+  .pw input{padding-right:40px}
+  .pw .eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);
+    border:none;background:transparent;padding:5px 7px;color:var(--text-3);line-height:1}
+  .pw .eye:hover{background:transparent;color:var(--accent)}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:22px 0 12px;flex-wrap:wrap}
+  .search{position:relative;flex:1;min-width:200px}
+  .search input{padding-left:32px}
+  .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none}
+  .count{font-size:12px;color:var(--text-3);white-space:nowrap}
+
+  /* ---------- 站点卡片 ---------- */
+  .list{display:flex;flex-direction:column;gap:12px}
+  .site{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;transition:border-color .15s,box-shadow .15s}
+  .site:hover{border-color:var(--accent-line);box-shadow:0 2px 10px rgba(16,24,40,.055)}
+
+  .site-h{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;background:#fcfdff;
+    border-bottom:1px solid var(--line-2);cursor:pointer}
+  .site-h:hover{background:#f8fbff}
+  .caret{flex-shrink:0;width:16px;height:16px;margin-top:3px;color:var(--text-3);
+    transition:transform .18s}
+  .site.collapsed .caret{transform:rotate(-90deg)}
+  .site-main{flex:1;min-width:0}
+  .site-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .site-name{font-size:14.5px;font-weight:650;word-break:break-all}
+  .badge{font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:20px;
+    padding:1px 9px;font-weight:600;white-space:nowrap}
+  .badge.gray{color:#8a94a6;background:#f0f3f7}
+  .site-api{font-size:12px;color:var(--text-3);word-break:break-all;margin-top:3px;
+    font-family:ui-monospace,Consolas,monospace}
+  .site-note{font-size:12.5px;color:var(--text-2);margin-top:6px;white-space:pre-wrap;
+    word-break:break-word;border-left:2px solid var(--line);padding-left:9px}
+  .site-acts{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+
+  .keys{padding:8px 10px 10px}
+  .site.collapsed .keys{display:none}
+  .key-row{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;
+    transition:background .12s}
+  .key-row:hover{background:#f8fafc}
+  /* 明细行会插在两条 Key 之间，故不能用相邻选择器做分隔线 */
+  .key-row{border-top:1px solid var(--line-2)}
+  .key-row:first-child{border-top:none}
+  .key-row.off .keyval,.key-row.off .keylabel{color:#b6bfcc;text-decoration:line-through}
+  .keylabel{font-size:12.5px;font-weight:600;flex-shrink:0;max-width:170px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .keyval{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--text-2);
+    flex:1;min-width:110px;word-break:break-all}
+  .keyacts{display:flex;gap:5px;flex-shrink:0;align-items:center}
+
+  /* ---------- 可用性检测 ---------- */
+  .probe{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+    border-radius:20px;padding:2px 9px;white-space:nowrap;flex-shrink:0}
+  .probe.ok{color:#0b7a45;background:#e8f7ef;border:1px solid #b9e3cd}
+  .probe.bad{color:#b32a2a;background:#fdeceb;border:1px solid #f3c3c0}
+  .probe.warn{color:#9a6206;background:#fef6e4;border:1px solid #f7dfa8}
+  .probe.unknown{color:#5a6678;background:#f0f3f7;border:1px solid #dfe5ee}
+  .probe.testing{color:#2456c9;background:#eaf1fe;border:1px solid #c3d7fb}
+  .probe .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+  .probe .code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;font-weight:700;
+    opacity:.85;margin-left:2px}
+  .probe.testing .dot{animation:blink .9s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* 失败原因明细：直接写在 Key 下方，不必悬停 */
+  .probe-detail{display:flex;align-items:baseline;gap:9px;margin:1px 8px 8px 8px;
+    padding:6px 10px;border-radius:7px;font-size:12px;line-height:1.6;
+    border-left:3px solid currentColor}
+  .probe-detail.bad{color:#a32626;background:#fdf3f2}
+  .probe-detail.warn{color:#8a5704;background:#fef9ee}
+  .probe-detail.unknown{color:#4d5867;background:#f4f6f9}
+  .probe-detail .why{flex:1;word-break:break-word}
+  .probe-detail .when{flex-shrink:0;font-size:11px;opacity:.7;
+    font-family:ui-monospace,Consolas,monospace}
+
+  .probe-panel{margin:10px 10px 4px;padding:13px 15px;background:#f8fafc;
+    border:1px solid var(--line);border-radius:9px;font-size:12.5px}
+  .probe-panel h4{font-size:12.5px;font-weight:650;color:var(--text);margin-bottom:9px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .probe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+  .probe-grid label{font-size:11.5px;margin-bottom:4px}
+  .probe-grid input,.probe-grid select{font-size:12.5px;padding:6px 9px}
+  .probe-log{max-height:170px;overflow:auto;background:#fff;border:1px solid var(--line-2);
+    border-radius:7px;padding:9px 11px;font-family:ui-monospace,Consolas,monospace;
+    font-size:11.5px;line-height:1.75;color:var(--text-2);margin-top:10px}
+  .probe-log .ln{display:block;word-break:break-all}
+  .probe-log .ln.ok{color:#0b7a45}
+  .probe-log .ln.bad{color:#b32a2a}
+  .probe-log .ln.warn{color:#9a6206}
+  .probe-log .ln.dim{color:var(--text-3)}
+  .probe-tip{font-size:11.5px;color:var(--text-3);margin-top:8px;line-height:1.7}
+  .probe-tip b{color:var(--text-2)}
+  .empty-keys{padding:14px 10px;font-size:12.5px;color:var(--text-3);text-align:center}
+
+  .empty{text-align:center;padding:52px 20px;color:var(--text-3)}
+  .empty svg{margin-bottom:12px;opacity:.5}
+  .empty p{font-size:13px}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,28,42,.42);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:420px;
+    box-shadow:0 16px 48px rgba(16,24,40,.22);padding:22px;
+    max-height:88vh;overflow:auto}
+  .modal h3{font-size:15px;font-weight:650;margin-bottom:8px}
+  .modal p{font-size:13px;color:var(--text-2);margin-bottom:16px;word-break:break-word}
+  .modal .row{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+
+  #toast{position:fixed;left:50%;bottom:34px;transform:translate(-50%,16px);
+    background:#1c2431;color:#fff;font-size:13px;padding:9px 17px;border-radius:8px;
+    opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:99;
+    box-shadow:0 8px 24px rgba(16,24,40,.24);max-width:80vw;text-align:center}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.err{background:#b32a2a}
+
+  footer{margin-top:26px;font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.8}
+
+  @media(max-width:680px){
+    .grid{grid-template-columns:1fr}
+    .wrap{padding:18px 13px 44px}
+    .site-h{flex-wrap:wrap}
+    .site-acts{width:100%;justify-content:flex-start}
+    .key-row{flex-wrap:wrap}
+    .keylabel{max-width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="10.5" width="18" height="10.5" rx="2"></rect>
+          <path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"></path>
+          <circle cx="12" cy="15.7" r="1.3" fill="#fff" stroke="none"></circle>
+        </svg>
+      </div>
+      <div>
+        <h1>API 密钥保险箱</h1>
+        <div class="sub">一个地址挂多个 Key · 纯本地 · 关掉再打开还在</div>
+      </div>
+    </div>
+    <div class="head-actions">
+      <button id="btnLock" title="设置/修改访问口令">🔒 设口令</button>
+      <button id="btnExport">导出备份</button>
+      <button id="btnImport">导入备份</button>
+      <input type="file" id="fileImport" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="panel-h">
+      <h2 id="formTitle">添加一个 API 站点</h2>
+      <button class="icon" id="btnCancelEdit" style="display:none">取消编辑</button>
+    </div>
+    <div class="panel-b">
+      <form id="form" autocomplete="off">
+        <input type="hidden" id="fId">
+        <div class="grid">
+          <div>
+            <label for="fName">站点名称 <span class="req">*</span></label>
+            <input type="text" id="fName" placeholder="例：OpenAI、Claude、通义千问" maxlength="120">
+          </div>
+          <div>
+            <label for="fApi">API 地址 <span class="req">*</span></label>
+            <input type="text" id="fApi" class="mono" placeholder="https://api.openai.com/v1" maxlength="500">
+          </div>
+          <div class="full">
+            <label for="fNote">站点备注</label>
+            <textarea id="fNote" placeholder="平台说明、计费方式、控制台地址…" maxlength="1000"></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;border-top:1px dashed var(--line);padding-top:15px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+            <label style="margin:0">挂载的 Key <span class="hint" style="font-weight:400">可先不填，建好站点后再加</span></label>
+            <button type="button" class="tiny" id="btnAddKeyRow">+ 加一行</button>
+          </div>
+          <div id="keyRows"></div>
+        </div>
+
+        <div class="form-foot">
+          <button type="submit" class="primary" id="btnSubmit">保存站点</button>
+          <span class="grow"></span>
+          <span class="hint" id="storageHint"></span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2.2"
+           stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input type="search" id="search" placeholder="搜索站点名、地址、Key 备注或备注…">
+    </div>
+    <span class="count" id="count"></span>
+    <button id="btnToggleAll" class="icon">全部显示明文</button>
+    <button id="btnExpandAll" class="icon">全部折叠</button>
+    <button id="btnProbeAll" class="icon">检测所有 Key</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <footer>
+    数据保存在本机浏览器（此页面的独立存储空间）。清除浏览器数据会导致丢失，请定期「导出备份」。<br>
+    若设置了访问口令，导出文件同样是加密的。
+  </footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 常量 ================= */
+var LS_DATA   = 'apivault.data.v2';
+var LS_DATA_V1= 'apivault.data.v1';
+var LS_LOCK   = 'apivault.lock.v1';
+var LS_UI     = 'apivault.ui.v2';
+
+/* ================= 状态 ================= */
+var sites = [];              // [{id,name,api,note,keys:[{id,label,value,enabled}],createdAt,updatedAt}]
+var query = '';
+var showAll = false;         // 全局明文
+var revealed = {};           // keyId -> true
+var collapsed = {};          // siteId -> true
+var editingId = null;
+var cryptoKey = null;        // 有口令时才赋值
+var currentSalt = null;      // 本会话加密用的 salt，必须与密文中的 salt 一致
+var testingKeys = {};        // keyId -> true，检测进行中
+var openProbeCfg = {};       // siteId -> true，检测设置面板展开
+var probeLogs = {};          // siteId -> [{text, cls}]，检测日志
+
+/* ================= 工具 ================= */
+var $ = function(s){ return document.querySelector(s); };
+
+function uid(){ return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+var toastTimer = null;
+function toast(msg, isErr){
+  var t = $('#toast');
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.className = ''; }, 2200);
+}
+function mask(v){
+  if(!v) return '—';
+  if(v.length <= 10) return v.slice(0,2) + '••••';
+  return v.slice(0,6) + '••••••••' + v.slice(-4);
+}
+function fmtDate(ts){
+  if(!ts) return '';
+  var d = new Date(ts), p = function(n){ return n < 10 ? '0'+n : ''+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function bytes(n){
+  if(n < 1024) return n + ' B';
+  if(n < 1048576) return (n/1024).toFixed(1) + ' KB';
+  return (n/1048576).toFixed(2) + ' MB';
+}
+function keyCount(){
+  return sites.reduce(function(a, s){ return a + (s.keys ? s.keys.length : 0); }, 0);
+}
+
+/* ================= 数据规范化 / 迁移 ================= */
+/* 检测结果状态：ok 可用 / bad 密钥被拒 / warn 限流等 / unknown 无法判定 / '' 未测 */
+function normalizeProbe(p){
+  p = p || {};
+  return {
+    status: ['ok','bad','warn','unknown'].indexOf(p.status) >= 0 ? p.status : '',
+    code: p.code || 0,            // HTTP 状态码，0 表示网络层失败
+    msg: String(p.msg || '').slice(0,300),
+    tag: String(p.tag || '').slice(0,20),   // 无状态码时的短原因：超时/跨域/不可达
+    at: p.at || 0                 // 检测时间戳
+  };
+}
+function normalizeKey(k){
+  if(typeof k === 'string') return { id:uid(), label:'', value:k, enabled:true, probe:normalizeProbe() };
+  return {
+    id: k && k.id ? k.id : uid(),
+    label: String((k && k.label) || '').slice(0,120),
+    value: String((k && (k.value || k.key)) || '').slice(0,800),
+    enabled: !(k && k.enabled === false),
+    probe: normalizeProbe(k && k.probe)
+  };
+}
+/* 站点的检测配置：探测路径、认证头形式、超时 */
+function normalizeProbeCfg(c){
+  c = c || {};
+  var auth = ['bearer','x-api-key','query','none'].indexOf(c.auth) >= 0 ? c.auth : '';
+  return {
+    path: String(c.path || '').slice(0,300),
+    auth: auth,
+    header: String(c.header || '').slice(0,80),
+    param: String(c.param || '').slice(0,60),
+    timeout: Math.min(Math.max(parseInt(c.timeout, 10) || 10000, 2000), 30000)
+  };
+}
+function normalizeSite(s){
+  return {
+    id: s && s.id ? s.id : uid(),
+    name: String((s && s.name) || '未命名站点').slice(0,120),
+    api: String((s && s.api) || '').slice(0,500),
+    note: String((s && s.note) || '').slice(0,1000),
+    keys: ((s && s.keys) || []).map(normalizeKey).filter(function(k){ return k.value; }),
+    probeCfg: normalizeProbeCfg(s && s.probeCfg),
+    createdAt: (s && s.createdAt) || Date.now(),
+    updatedAt: (s && s.updatedAt) || (s && s.createdAt) || Date.now()
+  };
+}
+/* v1（扁平 items）→ v2（站点 + keys）：按 api 地址归组，空地址各自独立成站点 */
+function migrateV1(list){
+  var map = {}, order = [];
+  list.forEach(function(it){
+    var api = String(it.api || '').trim();
+    var bucket = api ? ('api:' + api) : ('one:' + uid());
+    if(!map[bucket]){
+      map[bucket] = {
+        id: uid(),
+        name: api ? deriveName(api) : (it.name || '未命名站点'),
+        api: api,
+        note: '',
+        keys: [],
+        createdAt: it.createdAt || Date.now(),
+        updatedAt: it.updatedAt || it.createdAt || Date.now()
+      };
+      order.push(bucket);
+    }
+    var st = map[bucket];
+    if(api && !st.api) st.api = api;
+    if(!api) st.note = String(it.note || '').slice(0,1000);
+    if(it.key){
+      st.keys.push({ id:uid(), label: String(it.name || '').slice(0,120), value: String(it.key).slice(0,800), enabled:true });
+    }
+    if(it.createdAt && it.createdAt < st.createdAt) st.createdAt = it.createdAt;
+    if(it.updatedAt && it.updatedAt > st.updatedAt) st.updatedAt = it.updatedAt;
+  });
+  return order.map(function(b){ return map[b]; });
+}
+function deriveName(api){
+  try{
+    var u = new URL(api);
+    var host = u.hostname.replace(/^www\./, '');
+    return host;
+  }catch(e){
+    return api.replace(/^https?:\/\//, '').split('/')[0] || '未命名站点';
+  }
+}
+
+/* ================= 可用性检测 ================= */
+/* 内置预设：按 API 域名匹配，给出探测路径与认证方式。
+   仅作默认值，用户可在站点里覆盖。 */
+var PROBE_PRESETS = [
+  { host:/api\.openai\.com|openai\.azure\.com|api\.deepseek\.com|dashscope\.aliyuncs\.com|api\.moonshot\.cn|open\.bigmodel\.cn|api\.siliconflow\.cn|api\.minimax\.chat|api\.stepfun\.com|api\.baichuan-ai\.com|ark\.cn-beijing\.volces\.com/,
+    path:'/models', auth:'bearer' },
+  { host:/api\.anthropic\.com/,            path:'/v1/models', auth:'x-api-key' },
+  { host:/generativelanguage\.googleapis\.com/, path:'/v1beta/models', auth:'query', param:'key' },
+  { host:/api\.groq\.com|api\.mistral\.ai|api\.together\.xyz|api\.perplexity\.ai|openrouter\.ai|api\.cohere\.ai|api\.x\.ai/,
+    path:'/models', auth:'bearer' },
+  { host:/hunyuan\.tencentcloudapi\.com|api\.hunyuan\.tencent\.com/, path:'/v1/models', auth:'bearer' },
+  { host:/qianfan\.baidubce\.com|aip\.baidubce\.com/, path:'/v2/models', auth:'bearer' }
+];
+function presetFor(api){
+  var url = String(api || '');
+  for(var i=0;i<PROBE_PRESETS.length;i++){
+    if(PROBE_PRESETS[i].host.test(url)) return PROBE_PRESETS[i];
+  }
+  return null;
+}
+/* 该站点实际生效的检测配置（用户配置优先，缺项用预设补，再缺给保守默认） */
+function effectiveProbeCfg(site){
+  var c = normalizeProbeCfg(site.probeCfg);
+  var pre = presetFor(site.api);
+  return {
+    path:   c.path   || (pre ? pre.path : ''),
+    auth:   c.auth   || (pre ? pre.auth : 'bearer'),
+    header: c.header || '',
+    param:  c.param  || (pre && pre.param ? pre.param : 'key'),
+    timeout:c.timeout
+  };
+}
+/* 拼接探测 URL：api 可能是 https://host/v1 这种带路径的，需正确合并 */
+function buildProbeURL(site, cfg, keyValue){
+  var base = String(site.api || '').trim().replace(/\/+$/, '');
+  if(!base) return '';
+  var path = String(cfg.path || '').trim();
+  var url;
+  if(!path){
+    url = base;
+  }else if(/^https?:\/\//i.test(path)){
+    url = path;
+  }else{
+    // 若 path 已包含在 base 末尾，则不重复拼接
+    var tail = path.replace(/^\/+/, '');
+    url = base.toLowerCase().endsWith('/' + tail.toLowerCase()) ? base : base + '/' + tail;
+  }
+  if(cfg.auth === 'query' && keyValue){
+    url += (url.indexOf('?') >= 0 ? '&' : '?') +
+           encodeURIComponent(cfg.param || 'key') + '=' + encodeURIComponent(keyValue);
+  }
+  return url;
+}
+/* 构造认证请求头（query 方式不带头） */
+function buildProbeHeaders(site, cfg, keyValue){
+  var h = { 'Accept': 'application/json' };
+  if(!keyValue) return h;
+  if(cfg.auth === 'bearer')      h['Authorization'] = 'Bearer ' + keyValue;
+  else if(cfg.auth === 'x-api-key') h[cfg.header || 'x-api-key'] = keyValue;
+  else if(cfg.auth === 'none')   { /* 不带认证 */ }
+  return h;
+}
+
+/* 单次 fetch，带超时。resolve 成 {status, note} 或 reject */
+function fetchOnce(url, opts, timeout){
+  return new Promise(function(resolve, reject){
+    var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){
+      if(ctl) ctl.abort();
+      reject(new Error('timeout'));
+    }, timeout);
+    var o = Object.assign({}, opts);
+    if(ctl) o.signal = ctl.signal;
+    fetch(url, o).then(function(res){
+      clearTimeout(timer);
+      resolve(res);
+    }).catch(function(e){
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
+/* ---------- 跨域代理 ---------- */
+/* 以 file:// 双击打开时没有代理，只能让浏览器直连第三方 API，多数会被跨域拦截。
+   通过 proxy-server.mjs 以 http:// 打开后，检测请求交给本机 Node 转发，
+   服务端不受同源策略约束，跨域限制就绕开了。
+   页面部署到 GitHub Pages 后既不是 file:// 也不是 127.0.0.1，此时默认直连
+   （会被对方跨域拦截），可点顶栏徽章手动填入代理地址。 */
+var LS_PROXY = 'apivault.proxy.v1';
+var IS_LOCAL = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+var PROXY_SAVED = (function(){ try{ return localStorage.getItem(LS_PROXY) || ''; }catch(e){ return ''; } })();
+var PROXY_BASE = PROXY_SAVED || (IS_LOCAL ? location.origin + '/api/probe' : '');
+var HAS_PROXY = !!PROXY_BASE && /^https?:$/.test(location.protocol);
+
+function proxyFetch(url, headers, timeout){
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = setTimeout(function(){ if(ctl) ctl.abort(); }, timeout);
+  var opts = {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ url: url, headers: headers || {} })
+  };
+  if(ctl) opts.signal = ctl.signal;
+  return fetch(PROXY_BASE, opts)
+    .then(function(r){ clearTimeout(timer); return r.json(); })
+    .then(function(j){
+      if(j && j.__error) return Promise.reject(new Error(j.__error));
+      if(!j || typeof j.status !== 'number') return Promise.reject(new Error('代理返回格式异常'));
+      return { status: j.status };
+    })
+    .catch(function(e){
+      clearTimeout(timer);
+      if(ctl && e && e.name === 'AbortError') return Promise.reject(new Error('timeout'));
+      throw e;
+    });
+}
+
+/* 根据 HTTP 状态码判定结果 */
+function judgeStatus(code){
+  if(code >= 200 && code < 300) return { status:'ok',      msg:'密钥有效' };
+  if(code === 401)              return { status:'bad',     msg:'未授权，密钥无效或已撤销' };
+  if(code === 403)              return { status:'bad',     msg:'被拒绝，密钥无权访问或区域受限' };
+  if(code === 402)              return { status:'warn',    msg:'余额不足，但密钥本身有效' };
+  if(code === 429)              return { status:'warn',    msg:'请求过于频繁，密钥有效' };
+  if(code === 404)              return { status:'warn',    msg:'探测端点不存在，认证结果无法确认' };
+  if(code === 400)              return { status:'warn',    msg:'请求被拒（400），可能是参数或端点不符' };
+  if(code >= 500)               return { status:'unknown', msg:'服务端错误 ' + code + '，非密钥问题' };
+  return { status:'unknown', msg:'未预期的状态码 ' + code };
+}
+
+/* 探测一个 Key。返回 Promise<probe 对象>，不抛出。
+   tag 用于没有 HTTP 状态码时的短原因标签（超时/跨域/不可达），
+   让用户不必悬停就能看出失败缘由。 */
+function probeKey(site, key){
+  var cfg = effectiveProbeCfg(site);
+  var url = buildProbeURL(site, cfg, key.value);
+  var now = Date.now();
+  var done = function(status, code, msg, tag){
+    return { status:status, code:code, msg:msg, tag:tag || '', at:now };
+  };
+
+  if(!url){
+    return Promise.resolve(done('unknown', 0, '站点未填 API 地址', '缺地址'));
+  }
+  if(!key.value){
+    return Promise.resolve(done('unknown', 0, '该条目没有 Key', '无 Key'));
+  }
+  if(typeof fetch === 'undefined'){
+    return Promise.resolve(done('unknown', 0, '当前浏览器不支持 fetch', '不支持'));
+  }
+
+  var headers = buildProbeHeaders(site, cfg, key.value);
+
+  var send = HAS_PROXY
+    ? proxyFetch(url, headers, cfg.timeout)
+    : fetchOnce(url, { method:'GET', headers:headers, mode:'cors', cache:'no-store' }, cfg.timeout)
+        .then(function(res){ return { status:res.status }; });
+
+  return send
+    .then(function(res){
+      var j = judgeStatus(res.status);
+      return done(j.status, res.status, j.msg);
+    })
+    .catch(function(err){
+      var isAbort = err && (err.name === 'AbortError' || err.message === 'timeout');
+      if(isAbort){
+        return done('unknown', 0,
+          '请求超时（' + Math.round(cfg.timeout/1000) + ' 秒）', '超时');
+      }
+      if(HAS_PROXY){
+        return done('unknown', 0,
+          '本地代理转发失败：' + String((err && err.message) || err).slice(0,160), '代理失败');
+      }
+      // 浏览器直连失败：用 no-cors 复测，区分「服务器不可达」与「跨域读不到」
+      return fetchOnce(url, { method:'GET', mode:'no-cors', cache:'no-store' }, Math.min(cfg.timeout, 8000))
+        .then(function(){
+          // opaque 响应：请求确实发出去了，只是读不到内容
+          return done('unknown', 0,
+            '请求已发出但响应被跨域策略屏蔽（opaque）。改用「启动代理」打开本页即可解决', '跨域');
+        })
+        .catch(function(){
+          return done('unknown', 0,
+            '无法连接该地址。可能是网络不通或域名错误', '不可达');
+        });
+    });
+}
+
+/* 并发批量探测：串行执行，避免瞬间打出大量请求 */
+function runProbe(site, keys, showLog){
+  keys = (keys || []).filter(function(k){ return k && k.value; });
+  if(!keys.length){ toast('没有可检测的 Key', true); return; }
+  if(!site.api){ toast('该站点未填 API 地址', true); return; }
+
+  keys.forEach(function(k){ testingKeys[k.id] = true; });
+  if(showLog) probeLogs[site.id] = [];
+  render();
+  if(showLog) logProbe(site.id, '开始检测 ' + keys.length + ' 个 Key…');
+
+  var i = 0, summary = { ok:0, bad:0, warn:0, unknown:0 };
+  function next(){
+    if(i >= keys.length){
+      keys.forEach(function(k){ delete testingKeys[k.id]; });
+      site.updatedAt = Date.now();
+      return persist().then(function(ok){
+        render();
+        if(showLog) logProbe(site.id, '完成：可用 ' + summary.ok + ' · 无效 ' + summary.bad +
+          ' · 存疑 ' + summary.warn + ' · 无法判定 ' + summary.unknown, 'dim');
+        if(!ok) return;
+        toast('检测完成：可用 ' + summary.ok + ' / ' + keys.length);
+      });
+    }
+    var k = keys[i++];
+    return probeKey(site, k).then(function(res){
+      k.probe = res;
+      summary[res.status] = (summary[res.status] || 0) + 1;
+      if(showLog){
+        logProbe(site.id, probeLogLine(k, res),
+          res.status === 'ok' ? 'ok' : (res.status === 'bad' ? 'bad' : (res.status === 'warn' ? 'warn' : 'dim')));
+      }
+      // 该 Key 检测完毕，立刻显示结果
+      delete testingKeys[k.id];
+      render();
+      return next();
+    });
+  }
+  return next();
+}
+
+/* 检测面板里的日志：存进状态，避免 re-render 后丢失 */
+function logProbe(siteId, text, cls){
+  if(!probeLogs[siteId]) probeLogs[siteId] = [];
+  probeLogs[siteId].push({ text:text, cls:cls || '' });
+  if(probeLogs[siteId].length > 200) probeLogs[siteId].shift();
+  var box = document.querySelector('#probeLog');
+  if(box) box.scrollTop = box.scrollHeight;
+}
+function probeLogLine(k, res){
+  var name = k.label || mask(k.value);
+  var code = res.code ? 'HTTP ' + res.code : (res.tag || '无响应');
+  return '[' + name + '] ' + (PROBE_LABEL[res.status] || '?') + ' · ' + code + ' · ' + res.msg;
+}
+
+/* 从面板 DOM 读取检测配置（不落盘）。返回 null 表示校验不通过 */
+function readProbeCfgFromDOM(siteEl){
+  var panel = siteEl.querySelector('.probe-panel');
+  if(!panel) return null;
+  var get = function(f){
+    var el = panel.querySelector('.pcfg[data-f="' + f + '"]');
+    return el ? el.value : '';
+  };
+  var msg = panel.querySelector('#pcfgMsg');
+  var timeout = parseInt(get('timeout'), 10);
+  if(!(timeout >= 2 && timeout <= 30)){
+    if(msg) msg.textContent = '超时需在 2–30 秒之间';
+    return null;
+  }
+  var path = get('path').trim();
+  if(path && !/^https?:\/\//i.test(path) && path.charAt(0) !== '/'){
+    if(msg) msg.textContent = '探测路径建议以 / 开头，例如 /models';
+    return null;
+  }
+  if(msg) msg.textContent = '';
+  return normalizeProbeCfg({
+    path: path, auth: get('auth'), header: get('header').trim(),
+    param: get('param').trim(), timeout: timeout * 1000
+  });
+}
+
+/* 保存检测设置 */
+function saveProbeCfg(site, siteEl){
+  var cfg = readProbeCfgFromDOM(siteEl);
+  if(!cfg) return;
+  site.probeCfg = cfg;
+  site.updatedAt = Date.now();
+  // 配置变了，旧检测结果作废
+  site.keys.forEach(function(k){ k.probe = normalizeProbe(); });
+  persist().then(function(ok){
+    if(!ok) return;
+    render();
+    var m2 = document.querySelector('#pcfgMsg');
+    if(m2) m2.textContent = '已保存，旧检测结果已清空';
+    toast('检测设置已保存');
+  });
+}
+
+/* ================= 存储：明文 ================= */
+function savePlain(){
+  try{
+    localStorage.setItem(LS_DATA, JSON.stringify({ v:2, sites: sites }));
+    updateStorageHint();
+    return true;
+  }catch(e){
+    toast('保存失败：浏览器存储空间不足或被禁用', true);
+    return false;
+  }
+}
+function readPlain(){
+  var raw = localStorage.getItem(LS_DATA);
+  if(raw){
+    try{
+      var o = JSON.parse(raw);
+      if(o && Array.isArray(o.sites)) return o.sites.map(normalizeSite);
+    }catch(e){}
+  }
+  // 兜底：读 v1 扁平数据并迁移
+  var raw1 = localStorage.getItem(LS_DATA_V1);
+  if(raw1){
+    try{
+      var o1 = JSON.parse(raw1);
+      if(o1 && Array.isArray(o1.items) && o1.items.length){
+        var migrated = migrateV1(o1.items).map(normalizeSite);
+        sites = migrated;
+        savePlain();
+        localStorage.removeItem(LS_DATA_V1);
+        toast('已把 ' + o1.items.length + ' 条旧数据合并为 ' + migrated.length + ' 个站点');
+        return migrated;
+      }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* ================= 存储：加密 ================= */
+function b64(buf){
+  var b = new Uint8Array(buf), s = '';
+  for(var i=0;i<b.length;i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function unb64(str){
+  var bin = atob(str), out = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function deriveKey(pass, salt, usage){
+  var enc = new TextEncoder();
+  return crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey'])
+    .then(function(base){
+      return crypto.subtle.deriveKey(
+        { name:'PBKDF2', salt:salt, iterations:200000, hash:'SHA-256' },
+        base, { name:'AES-GCM', length:256 }, false, usage);
+    });
+}
+/* 用指定 salt 派生密钥。统一申请 encrypt+decrypt 双权限：
+   AES-GCM 的加解密共用同一密钥材料，只申请单边权限会导致另一侧抛
+   InvalidAccessError（曾因此造成「加密态下加 Key 静默失败」）。 */
+function deriveEncKey(pass, salt){
+  return deriveKey(pass, salt, ['encrypt','decrypt']);
+}
+/* 写密文：salt 由调用方传入并沿用，iv 每次新生成（AES-GCM 要求 IV 唯一） */
+function writeLocked(key, payload, salt){
+  var enc = new TextEncoder();
+  var iv  = crypto.getRandomValues(new Uint8Array(12));
+  salt = salt || crypto.getRandomValues(new Uint8Array(16));
+  return crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, key, enc.encode(JSON.stringify(payload)))
+    .then(function(ct){
+      localStorage.setItem(LS_LOCK, JSON.stringify({
+        v:2, kdf:'PBKDF2-SHA256', iter:200000,
+        salt:b64(salt), iv:b64(iv), ct:b64(ct)
+      }));
+      localStorage.removeItem(LS_DATA);
+      updateStorageHint();
+      return true;
+    });
+}
+function encryptSites(pass){
+  var enc = new TextEncoder();
+  var salt = crypto.getRandomValues(new Uint8Array(16));
+  var iv   = crypto.getRandomValues(new Uint8Array(12));
+  return deriveEncKey(pass, salt).then(function(k){
+    // 载荷格式必须与 persist() / writeLocked() 保持一致：{ v:2, sites:[...] }
+    return crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, k,
+      enc.encode(JSON.stringify({ v:2, sites: sites })));
+  }).then(function(ct){
+    localStorage.setItem(LS_LOCK, JSON.stringify({
+      v:2, kdf:'PBKDF2-SHA256', iter:200000,
+      salt:b64(salt), iv:b64(iv), ct:b64(ct)
+    }));
+    localStorage.removeItem(LS_DATA);
+    currentSalt = salt;          // 记住本会话的 salt，后续写盘复用
+    cryptoKey = null;            // 由 decryptSites 重新持有
+    return true;
+  });
+}
+function decryptSites(pass){
+  var meta;
+  try{ meta = JSON.parse(localStorage.getItem(LS_LOCK)); }
+  catch(e){ return Promise.reject(new Error('存储损坏')); }
+  if(!meta || !meta.ct) return Promise.reject(new Error('找不到加密数据'));
+  var salt = unb64(meta.salt), iv = unb64(meta.iv), ct = unb64(meta.ct);
+  // 派生时同时申请 encrypt 权限：解锁后还要继续写盘（AES-GCM 的加解密共用同一密钥材料）
+  return deriveKey(pass, salt, ['encrypt','decrypt']).then(function(k){
+    return crypto.subtle.decrypt({ name:'AES-GCM', iv:iv }, k, ct).then(function(plain){
+      var o = JSON.parse(new TextDecoder().decode(plain));
+      // 兼容三种历史载荷：{sites:[]} / {items:[]} / 裸数组
+      var list;
+      if(o && Array.isArray(o.sites))      list = o.sites;
+      else if(o && Array.isArray(o.items)) list = migrateV1(o.items);
+      else if(Array.isArray(o))            list = o;
+      else                                 list = [];
+      cryptoKey = k;               // 解密成功后才持有会话密钥
+      currentSalt = salt;          // ★ 关键：写盘沿用同一 salt，才能被再次解密
+      return list.map(normalizeSite);
+    });
+  });
+}
+function isLocked(){ return !!localStorage.getItem(LS_LOCK); }
+
+/* ================= 统一写入口 ================= */
+function persist(){
+  if(!isLocked()) return Promise.resolve(savePlain());
+  if(!cryptoKey){
+    toast('已加密，请先输入口令', true);
+    return Promise.resolve(false);
+  }
+  // 复用解锁时记录的 salt，保证密文下次仍能被同一口令解开
+  return writeLocked(cryptoKey, { v:2, sites: sites }, currentSalt).catch(function(e){
+    if(window.console) console.warn('persist failed:', e);
+    toast('加密保存失败', true);
+    return false;
+  });
+}
+function updateStorageHint(){
+  var raw = localStorage.getItem(LS_DATA) || localStorage.getItem(LS_LOCK) || '';
+  var locked = isLocked();
+  $('#storageHint').textContent =
+    (locked ? '🔒 已加密存储' : '💾 本地存储') +
+    (raw ? ' · ' + bytes(raw.length * 2) : '');
+  // 按钮文案跟随真实状态，用户一眼能看出当前是加密还是明文
+  var btn = $('#btnLock');
+  if(locked){
+    btn.textContent = '🔒 口令（点此移除）';
+    btn.title = '当前已加密。点开可更换口令，或移除口令恢复明文存储';
+  }else{
+    btn.textContent = '🔓 设口令';
+    btn.title = '为本地数据设置访问口令（AES-256 加密）';
+  }
+}
+
+/* ================= 渲染 ================= */
+/* 检测状态徽章。testing 为真时显示进行中。
+   徽章上直接带上状态码或短原因，不必悬停即可看出缘由。 */
+var PROBE_LABEL = { ok:'可用', bad:'无效', warn:'存疑', unknown:'无法判定' };
+function probeShort(p){
+  if(p.code) return 'HTTP ' + p.code;
+  return p.tag || '';
+}
+function probeBadgeHTML(k, testing){
+  if(testing) return '<span class="probe testing"><i class="dot"></i>检测中</span>';
+  var p = k.probe || {};
+  if(!p.status) return '';
+  var label = PROBE_LABEL[p.status] || '未知';
+  var short = probeShort(p);
+  var tip = (p.msg || '') + (p.code ? '（HTTP ' + p.code + '）' : '') +
+            (p.at ? '\n检测于 ' + fmtDate(p.at) : '');
+  return '<span class="probe ' + p.status + '" title="' + esc(tip) + '">' +
+           '<i class="dot"></i>' + label +
+           (short ? '<b class="code">' + esc(short) + '</b>' : '') +
+         '</span>';
+}
+/* 失败原因明细行：非「可用」时在 Key 下方直接写出原因，无需悬停 */
+function probeDetailHTML(k){
+  var p = k.probe || {};
+  if(!p.status || p.status === 'ok') return '';
+  if(!p.msg) return '';
+  return '<div class="probe-detail ' + p.status + '">' +
+           '<span class="why">' + esc(p.msg) + '</span>' +
+           (p.at ? '<span class="when">' + esc(fmtDate(p.at)) + '</span>' : '') +
+         '</div>';
+}
+function matches(site, q){
+  if(!q) return true;
+  if((site.name||'').toLowerCase().indexOf(q) >= 0) return true;
+  if((site.api ||'').toLowerCase().indexOf(q) >= 0) return true;
+  if((site.note||'').toLowerCase().indexOf(q) >= 0) return true;
+  return (site.keys||[]).some(function(k){
+    return (k.label||'').toLowerCase().indexOf(q) >= 0
+        || (k.value||'').toLowerCase().indexOf(q) >= 0;
+  });
+}
+
+function render(){
+  var list = $('#list');
+  var q = query.trim().toLowerCase();
+  var visible = sites.filter(function(s){ return matches(s, q); });
+
+  $('#count').textContent = (visible.length === sites.length)
+    ? sites.length + ' 个站点 · ' + keyCount() + ' 个 Key'
+    : visible.length + ' / ' + sites.length + ' 个站点';
+
+  if(!sites.length){
+    list.innerHTML =
+      '<div class="empty">' +
+      '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="10.5" width="18" height="10.5" rx="2"></rect>' +
+      '<path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"></path></svg>' +
+      '<p>还没有任何站点，用上面的表单建一个。</p></div>';
+    return;
+  }
+  if(!visible.length){
+    list.innerHTML = '<div class="empty"><p>没有匹配「' + esc(query) + '」的记录。</p></div>';
+    return;
+  }
+
+  list.innerHTML = visible.map(function(s){
+    var isOpen   = !collapsed[s.id];
+    var hasKeys  = s.keys.length > 0;
+    var activeN  = s.keys.filter(function(k){ return k.enabled; }).length;
+
+    var badge = !hasKeys
+      ? '<span class="badge gray">暂无 Key</span>'
+      : '<span class="badge">' + s.keys.length + ' 个 Key</span>' +
+        (activeN < s.keys.length ? '<span class="badge gray">' + (s.keys.length - activeN) + ' 停用</span>' : '');
+
+    var rows = hasKeys ? s.keys.map(function(k){
+      var plain = showAll || revealed[k.id];
+      var shown = k.value ? (plain ? k.value : mask(k.value)) : '—';
+      var testing = testingKeys[k.id];
+      return '' +
+      '<div class="key-row' + (k.enabled ? '' : ' off') + '" data-key="' + k.id + '">' +
+        '<span class="keylabel">' + (k.label ? esc(k.label) : '<span style="color:#b6bfcc">未命名</span>') + '</span>' +
+        '<span class="keyval">' + esc(shown) + '</span>' +
+        probeBadgeHTML(k, testing) +
+        '<span class="keyacts">' +
+          '<button class="tiny" data-kact="probe"' + (testing ? ' disabled' : '') + '>' +
+            (testing ? '检测中' : '检测') + '</button>' +
+          '<button class="tiny" data-kact="reveal">' + (plain ? '隐藏' : '显示') + '</button>' +
+          '<button class="tiny" data-kact="copy">复制</button>' +
+          '<button class="tiny" data-kact="edit">编辑</button>' +
+          '<button class="tiny" data-kact="toggle">' + (k.enabled ? '停用' : '启用') + '</button>' +
+          '<button class="tiny ghost-danger" data-kact="del">删除</button>' +
+        '</span>' +
+      '</div>' + probeDetailHTML(k);
+    }).join('') : '<div class="empty-keys">这个站点还没有 Key，点右上角「+ 加 Key」。</div>';
+
+    return '' +
+    '<div class="site' + (isOpen ? '' : ' collapsed') + '" data-site="' + s.id + '">' +
+      '<div class="site-h" data-sact="fold">' +
+        '<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>' +
+        '<div class="site-main">' +
+          '<div class="site-title">' +
+            '<span class="site-name">' + esc(s.name) + '</span>' + badge +
+          '</div>' +
+          (s.api ? '<div class="site-api">' + esc(s.api) + '</div>' : '') +
+          (s.note ? '<div class="site-note">' + esc(s.note) + '</div>' : '') +
+        '</div>' +
+        '<div class="site-acts">' +
+          '<button class="icon" data-sact="probeall">检测全部</button>' +
+          '<button class="icon" data-sact="probecfg">检测设置</button>' +
+          '<button class="icon" data-sact="addkey">+ 加 Key</button>' +
+          '<button class="icon" data-sact="copyall">复制全部</button>' +
+          '<button class="icon" data-sact="edit">编辑</button>' +
+          '<button class="icon ghost-danger" data-sact="del">删除</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="keys">' + rows + probePanelHTML(s) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* 站点的检测配置面板（默认折叠，点「检测设置」展开） */
+function probePanelHTML(s){
+  if(!openProbeCfg[s.id]) return '';
+  var c = effectiveProbeCfg(s);
+  var preset = presetFor(s.api);
+  var authOpts = [['bearer','Authorization: Bearer <key>'],['x-api-key','x-api-key: <key>'],
+                  ['query','URL 参数 ?key=<key>'],['none','不带认证']];
+  return '' +
+  '<div class="probe-panel">' +
+    '<h4><span>检测设置 · ' + esc(s.name) + '</span>' +
+      '<button class="tiny" data-sact="probeclose">收起</button></h4>' +
+    '<div class="probe-grid">' +
+      '<div><label>探测路径</label>' +
+        '<input type="text" class="pcfg" data-f="path" value="' + esc(c.path) + '" placeholder="/models"></div>' +
+      '<div><label>认证方式</label>' +
+        '<select class="pcfg" data-f="auth">' +
+          authOpts.map(function(o){
+            return '<option value="' + o[0] + '"' + (c.auth === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+          }).join('') +
+        '</select></div>' +
+      '<div><label>认证头名（可选）</label>' +
+        '<input type="text" class="pcfg" data-f="header" value="' + esc(c.header) + '" placeholder="默认 x-api-key"></div>' +
+      '<div><label>URL 参数名（query 用）</label>' +
+        '<input type="text" class="pcfg" data-f="param" value="' + esc(c.param) + '" placeholder="key"></div>' +
+      '<div><label>超时（秒）</label>' +
+        '<input type="number" class="pcfg" data-f="timeout" min="2" max="30" value="' +
+          Math.round(c.timeout / 1000) + '"></div>' +
+    '</div>' +
+    '<div class="hint" id="pcfgMsg" style="min-height:16px"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="tiny primary" data-sact="probesave">保存设置</button>' +
+      (preset ? '<button class="tiny" data-sact="probereset">恢复预设</button>' : '') +
+      '<button class="tiny" data-sact="probetest">试一次</button>' +
+    '</div>' +
+    '<div class="probe-log" id="probeLog">' +
+      (function(){
+        var logs = probeLogs[s.id] || [];
+        if(!logs.length) return '<span class="ln dim">点「试一次」用第一个 Key 发起探测。</span>';
+        return logs.map(function(l){
+          return '<span class="ln ' + l.cls + '">' + esc(l.text) + '</span>';
+        }).join('');
+      })() +
+    '</div>' +
+    '<div class="probe-tip">' +
+      '<b>关于跨域：</b>' + (HAS_PROXY
+        ? '检测请求经由本地代理转发，不受浏览器同源策略限制，结果可信。'
+        : '当前没有代理，检测会直连第三方 API，多数会被跨域拦截。' +
+          '点顶栏徽章填入代理地址即可解决。') +
+      '若结果长期显示「无法判定」，多半是对方未开放跨域，而非密钥有问题。' +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= 表单：Key 行 ================= */
+function keyRowHTML(k){
+  k = k || {};
+  return '' +
+  '<div class="keyline" data-key="' + (k.id || '') + '" style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start">' +
+    '<input type="text" class="klabel" placeholder="备注名（如：生产）" maxlength="120" style="flex:0 0 150px"' +
+      ' value="' + esc(k.label || '') + '">' +
+    '<div class="pw" style="flex:1;min-width:0">' +
+      '<input type="password" class="kvalue mono" placeholder="sk-..." maxlength="800"' +
+        ' value="' + esc(k.value || '') + '" style="padding-right:38px">' +
+      '<button type="button" class="eye" title="显示/隐藏">👁</button>' +
+    '</div>' +
+    '<button type="button" class="tiny ghost-danger kdel" title="移除这一行">移除</button>' +
+  '</div>';
+}
+function addKeyRow(k){
+  var box = $('#keyRows');
+  box.insertAdjacentHTML('beforeend', keyRowHTML(k));
+}
+function readKeyRows(){
+  var out = [];
+  Array.prototype.forEach.call(document.querySelectorAll('#keyRows .keyline'), function(line){
+    var label = line.querySelector('.klabel').value.trim();
+    var value = line.querySelector('.kvalue').value.trim();
+    if(!value) return;
+    var id = line.getAttribute('data-key') || uid();
+    var orig = $.cacheOrigKey[id];   // 编辑时记住的原对象，用于继承 enabled / probe
+    var k = {
+      id: id, label: label, value: value,
+      enabled: orig ? orig.enabled !== false : true,
+      probe: normalizeProbe(orig && orig.probe)
+    };
+    // Key 值变了，旧检测结果作废
+    if(orig && orig.value !== value) k.probe = normalizeProbe();
+    out.push(k);
+  });
+  return out;
+}
+$.cacheKeyState = {};
+$.cacheOrigKey = {};
+
+/* ================= 表单：站点 ================= */
+function clearForm(){
+  $('#form').reset();
+  $('#fId').value = '';
+  $('#keyRows').innerHTML = '';
+  addKeyRow();
+  editingId = null;
+  $.cacheKeyState = {};
+  $.cacheOrigKey = {};
+  $('#formTitle').textContent = '添加一个 API 站点';
+  $('#btnSubmit').textContent = '保存站点';
+  $('#btnCancelEdit').style.display = 'none';
+}
+function startEditSite(id){
+  var s = sites.filter(function(x){ return x.id === id; })[0];
+  if(!s) return;
+  editingId = id;
+  $.cacheKeyState = {};
+  $.cacheOrigKey = {};
+  s.keys.forEach(function(k){
+    $.cacheKeyState[k.id] = k.enabled;
+    $.cacheOrigKey[k.id] = k;
+  });
+
+  $('#fId').value   = s.id;
+  $('#fName').value = s.name || '';
+  $('#fApi').value  = s.api  || '';
+  $('#fNote').value = s.note || '';
+  $('#keyRows').innerHTML = s.keys.length
+    ? s.keys.map(keyRowHTML).join('')
+    : '';
+  if(!s.keys.length) addKeyRow();
+
+  $('#formTitle').textContent = '编辑站点：' + s.name;
+  $('#btnSubmit').textContent = '更新站点';
+  $('#btnCancelEdit').style.display = '';
+  $('#fName').focus();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+$('#btnAddKeyRow').addEventListener('click', function(){ addKeyRow(); });
+
+$('#keyRows').addEventListener('click', function(e){
+  if(e.target.closest('.eye')){
+    var inp = e.target.closest('.pw').querySelector('input');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    return;
+  }
+  if(e.target.closest('.kdel')){
+    var line = e.target.closest('.keyline');
+    var rows = document.querySelectorAll('#keyRows .keyline');
+    if(rows.length <= 1){ toast('至少要留一行（可留空）'); line.querySelector('.kvalue').value = ''; line.querySelector('.klabel').value = ''; return; }
+    line.remove();
+  }
+});
+
+$('#form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = $('#fName').value.trim();
+  var api  = $('#fApi').value.trim();
+  var note = $('#fNote').value.trim();
+
+  if(!name){ toast('请填写站点名称', true); $('#fName').focus(); return; }
+  if(!api){  toast('请填写 API 地址', true); $('#fApi').focus();  return; }
+
+  var keys = readKeyRows();
+  var now = Date.now();
+
+  if(editingId){
+    sites = sites.map(function(s){
+      if(s.id !== editingId) return s;
+      // 保留检测配置；Key 的检测结果在 readKeyRows 里按 id 继承
+      return { id:s.id, name:name, api:api, note:note, keys:keys,
+               probeCfg:s.probeCfg || normalizeProbeCfg(),
+               createdAt:s.createdAt, updatedAt:now };
+    });
+    persist().then(function(ok){
+      if(!ok) return;
+      clearForm(); render(); saveUI();
+      toast('站点已更新');
+    });
+  }else{
+    sites.unshift({ id:uid(), name:name, api:api, note:note, keys:keys,
+                    probeCfg:normalizeProbeCfg(),
+                    createdAt:now, updatedAt:now });
+    persist().then(function(ok){
+      if(!ok) return;
+      clearForm(); render(); saveUI();
+      toast('站点已保存' + (keys.length ? '（' + keys.length + ' 个 Key）' : ''));
+    });
+  }
+});
+
+$('#btnCancelEdit').addEventListener('click', clearForm);
+
+/* ================= 列表交互 ================= */
+$('#list').addEventListener('click', function(e){
+  var siteEl = e.target.closest('.site');
+  if(!siteEl) return;
+  var siteId = siteEl.getAttribute('data-site');
+  var site = sites.filter(function(x){ return x.id === siteId; })[0];
+  if(!site) return;
+
+  /* --- Key 行操作 --- */
+  var kbtn = e.target.closest('[data-kact]');
+  if(kbtn){
+    e.stopPropagation();
+    var row = kbtn.closest('[data-key]');
+    var keyId = row ? row.getAttribute('data-key') : null;
+    var k = (site.keys || []).filter(function(x){ return x.id === keyId; })[0];
+    if(!k) return;
+    var kact = kbtn.getAttribute('data-kact');
+
+    if(kact === 'reveal'){
+      revealed[k.id] = !(showAll || revealed[k.id]);
+      render();
+    } else if(kact === 'copy'){
+      copyText(k.value);
+    } else if(kact === 'edit'){
+      var nl = prompt('Key 备注名：', k.label || '');
+      if(nl === null) return;
+      k.label = nl.slice(0,120);
+      site.updatedAt = Date.now();
+      persist().then(function(ok){ if(ok) render(); });
+    } else if(kact === 'toggle'){
+      k.enabled = !k.enabled;
+      site.updatedAt = Date.now();
+      persist().then(function(ok){ if(ok){ render(); } });
+    } else if(kact === 'del'){
+      confirmAsk('删除这个 Key？',
+        '「' + (k.label || mask(k.value)) + '」将从 ' + site.name + ' 移除，无法恢复。',
+        function(){
+          site.keys = site.keys.filter(function(x){ return x.id !== k.id; });
+          delete revealed[k.id];
+          site.updatedAt = Date.now();
+          persist().then(function(ok){ if(ok){ render(); toast('已删除'); } });
+        });
+    } else if(kact === 'probe'){
+      runProbe(site, [k]);
+    }
+    return;
+  }
+
+  /* --- 站点操作 --- */
+  var sbtn = e.target.closest('[data-sact]');
+  var sact = sbtn ? sbtn.getAttribute('data-sact') : null;
+  // 检测面板内的输入操作不应触发站点折叠
+  if(!sact && e.target.closest('.probe-panel')) return;
+  if(sact === 'fold' || !sact){
+    collapsed[site.id] = !collapsed[site.id];
+    render(); saveUI();
+    return;
+  }
+  if(sact === 'probeall'){
+    var alive = site.keys.filter(function(k){ return k.enabled && k.value; });
+    if(!alive.length){ toast('没有启用中的 Key', true); return; }
+    collapsed[site.id] = false;   // 展开才能看到结果
+    runProbe(site, alive);
+    return;
+  }
+  if(sact === 'probecfg'){
+    openProbeCfg[site.id] = !openProbeCfg[site.id];
+    collapsed[site.id] = false;
+    render();
+    return;
+  }
+  if(sact === 'probeclose'){ openProbeCfg[site.id] = false; render(); return; }
+  if(sact === 'probesave'){ saveProbeCfg(site, siteEl); return; }
+  if(sact === 'probereset'){
+    site.probeCfg = normalizeProbeCfg();
+    site.updatedAt = Date.now();
+    persist().then(function(ok){ if(ok){ render(); toast('已恢复预设'); } });
+    return;
+  }
+  if(sact === 'probetest'){
+    var first = site.keys.filter(function(k){ return k.value; })[0];
+    if(!first){ toast('该站点还没有 Key', true); return; }
+    // 用面板里当前填的值试跑（只进内存，不落盘）
+    var domCfg = readProbeCfgFromDOM(siteEl);
+    if(!domCfg) return;
+    site.probeCfg = domCfg;
+    runProbe(site, [first], true);
+    return;
+  }
+  if(sact === 'addkey'){
+    collapsed[site.id] = false;
+    addKeyDialog(site);
+    return;
+  }
+  if(sact === 'edit'){ startEditSite(site.id); return; }
+  if(sact === 'copyall'){
+    var vals = site.keys.filter(function(x){ return x.enabled && x.value; }).map(function(x){ return x.value; });
+    if(!vals.length){ toast('没有可复制的 Key', true); return; }
+    copyText(vals.join('\n'));
+    return;
+  }
+  if(sact === 'del'){
+    confirmAsk('删除整个站点？',
+      '「' + site.name + '」及其 ' + site.keys.length + ' 个 Key 将全部移除，无法恢复。',
+      function(){
+        sites = sites.filter(function(x){ return x.id !== site.id; });
+        delete collapsed[site.id];
+        persist().then(function(ok){ if(ok){ render(); saveUI(); toast('站点已删除'); } });
+      });
+  }
+});
+
+/* 加 Key 弹窗 */
+function addKeyDialog(site){
+  var ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML =
+    '<div class="modal">' +
+      '<h3>为「' + esc(site.name) + '」添加 Key</h3>' +
+      '<p style="margin-bottom:12px">地址：<span class="mono">' + esc(site.api || '（未填）') + '</span></p>' +
+      '<label for="akLabel">备注名</label>' +
+      '<input type="text" id="akLabel" placeholder="如：生产 / 备用 / 测试账号" maxlength="120">' +
+      '<label for="akValue" style="margin-top:12px">API Key</label>' +
+      '<div class="pw">' +
+        '<input type="password" id="akValue" class="mono" placeholder="sk-..." maxlength="800" style="padding-right:38px">' +
+        '<button type="button" class="eye" data-r="eye" title="显示/隐藏">👁</button>' +
+      '</div>' +
+      '<div class="hint" id="akErr" style="margin-top:9px;color:#d93b3b;min-height:16px"></div>' +
+      '<div class="row">' +
+        '<button data-r="cancel">取消</button>' +
+        '<button class="primary" data-r="ok">添加</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  var close = function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  setTimeout(function(){ ov.querySelector('#akLabel').focus(); }, 30);
+
+  function submit(){
+    var label = ov.querySelector('#akLabel').value.trim();
+    var value = ov.querySelector('#akValue').value.trim();
+    var errEl = ov.querySelector('#akErr');
+    if(!value){ errEl.textContent = '请填写 API Key'; return; }
+    errEl.textContent = '保存中…';
+    site.keys = site.keys || [];
+    var newKey = { id:uid(), label:label, value:value, enabled:true };
+    site.keys.push(newKey);
+    var prevUpdated = site.updatedAt;
+    site.updatedAt = Date.now();
+    persist().then(function(ok){
+      if(!ok){
+        // 回滚，避免内存与磁盘不一致
+        site.keys = site.keys.filter(function(x){ return x.id !== newKey.id; });
+        site.updatedAt = prevUpdated;
+        errEl.textContent = '保存失败，请重试';
+        return;
+      }
+      close(); render();
+      toast('已添加 Key' + (label ? '：' + label : ''));
+    });
+  }
+  ov.addEventListener('click', function(e){
+    if(e.target === ov){ close(); return; }
+    if(e.target.closest('[data-r="eye"]')){
+      var inp = ov.querySelector('#akValue');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      return;
+    }
+    var b = e.target.closest('[data-r]');
+    if(!b) return;
+    if(b.getAttribute('data-r') === 'ok') submit(); else close();
+  });
+  ov.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); submit(); }
+  });
+}
+
+/* 通用二次确认 */
+function confirmAsk(title, msg, onYes){
+  var ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML =
+    '<div class="modal">' +
+      '<h3>' + esc(title) + '</h3>' +
+      '<p>' + esc(msg) + '</p>' +
+      '<div class="row">' +
+        '<button data-r="no">取消</button>' +
+        '<button class="primary" style="background:#d93b3b;border-color:#d93b3b" data-r="yes">删除</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  var close = function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  ov.addEventListener('click', function(e){
+    if(e.target === ov){ close(); return; }
+    var b = e.target.closest('[data-r]');
+    if(!b) return;
+    if(b.getAttribute('data-r') === 'yes'){ close(); onYes(); } else close();
+  });
+  setTimeout(function(){ ov.querySelector('[data-r="no"]').focus(); }, 20);
+}
+
+function copyText(text){
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); toast('已复制'); }
+    catch(e){ toast('复制失败，请手动选择', true); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text)
+      .then(function(){ toast('已复制'); })
+      .catch(fallback);
+  }else{ fallback(); }
+}
+
+/* ================= 工具条 ================= */
+$('#search').addEventListener('input', function(e){ query = e.target.value; render(); });
+
+$('#btnToggleAll').addEventListener('click', function(){
+  showAll = !showAll;
+  revealed = {};
+  this.textContent = showAll ? '全部隐藏明文' : '全部显示明文';
+  render();
+});
+
+$('#btnExpandAll').addEventListener('click', function(){
+  var anyOpen = sites.some(function(s){ return !collapsed[s.id]; });
+  collapsed = {};
+  if(anyOpen){
+    sites.forEach(function(s){ collapsed[s.id] = true; });
+    this.textContent = '全部展开';
+  }else{
+    this.textContent = '全部折叠';
+  }
+  render(); saveUI();
+});
+
+/* 检测所有站点的所有启用 Key（站点之间串行，避免并发过多） */
+$('#btnProbeAll').addEventListener('click', function(){
+  var jobs = sites.map(function(s){
+    return { site:s, keys:(s.keys || []).filter(function(k){ return k.enabled && k.value; }) };
+  }).filter(function(j){ return j.keys.length && j.site.api; });
+
+  if(!jobs.length){ toast('没有可检测的 Key（需填了 API 地址且 Key 已启用）', true); return; }
+
+  var total = jobs.reduce(function(a, j){ return a + j.keys.length; }, 0);
+  this.disabled = true;
+  var self = this, orig = this.textContent;
+  this.textContent = '检测中…';
+  // 展开所有站点，让结果可见
+  collapsed = {};
+  render();
+
+  var i = 0;
+  function step(){
+    if(i >= jobs.length){
+      self.disabled = false;
+      self.textContent = orig;
+      var ok = 0, bad = 0;
+      sites.forEach(function(s){
+        (s.keys || []).forEach(function(k){
+          if(k.probe && k.probe.status === 'ok') ok++;
+          else if(k.probe && k.probe.status === 'bad') bad++;
+        });
+      });
+      toast('检测完成：' + total + ' 个 Key，可用 ' + ok + '，无效 ' + bad);
+      return;
+    }
+    var j = jobs[i++];
+    runProbe(j.site, j.keys).then(step);
+  }
+  step();
+});
+
+/* UI 折叠状态持久化 */
+function saveUI(){
+  try{ localStorage.setItem(LS_UI, JSON.stringify({ collapsed:collapsed, showAll:showAll })); }catch(e){}
+}
+function loadUI(){
+  try{
+    var o = JSON.parse(localStorage.getItem(LS_UI));
+    if(o && typeof o === 'object'){
+      collapsed = o.collapsed || {};
+      showAll = !!o.showAll;
+      $('#btnToggleAll').textContent = showAll ? '全部隐藏明文' : '全部显示明文';
+    }
+  }catch(e){}
+}
+
+/* ================= 导入 / 导出 ================= */
+function stamp(){
+  var d = new Date(), p = function(n){ return n < 10 ? '0'+n : ''+n; };
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes());
+}
+function downloadJSON(obj, filename){
+  var blob = new Blob([JSON.stringify(obj, null, 2)], { type:'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+
+$('#btnExport').addEventListener('click', function(){
+  if(!sites.length){ toast('还没有数据可导出', true); return; }
+
+  function doExport(payload, suffix){
+    downloadJSON(payload, 'apivault-' + stamp() + suffix + '.json');
+    toast('已导出 ' + payload.sites.length + ' 个站点 · ' +
+      payload.sites.reduce(function(a,s){ return a + s.keys.length; }, 0) + ' 个 Key');
+  }
+
+  if(isLocked()){
+    var pass = prompt('导出为加密文件，请输入当前访问口令：');
+    if(pass === null) return;
+    var enc = new TextEncoder();
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv   = crypto.getRandomValues(new Uint8Array(12));
+    deriveKey(pass, salt, ['encrypt']).then(function(k){
+      return crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, k, enc.encode(JSON.stringify(sites)));
+    }).then(function(ct){
+      downloadJSON({
+        app:'api-vault', v:2, encrypted:true, kdf:'PBKDF2-SHA256', iter:200000,
+        salt:b64(salt), iv:b64(iv), ct:b64(ct)
+      }, 'apivault-' + stamp() + '-locked.json');
+      toast('已导出加密备份');
+    }).catch(function(){ toast('导出失败', true); });
+  }else{
+    doExport({ app:'api-vault', v:2, encrypted:false, sites:sites }, '');
+  }
+});
+
+$('#btnImport').addEventListener('click', function(){ $('#fileImport').click(); });
+
+$('#fileImport').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    var data;
+    try{ data = JSON.parse(fr.result); }
+    catch(err){ toast('文件不是合法的 JSON', true); return; }
+
+    function merge(rawSites, rawItems){
+      var incoming = [];
+      if(Array.isArray(rawItems)) incoming = migrateV1(rawItems);
+      else if(Array.isArray(rawSites)) incoming = rawSites;
+      if(!incoming.length){ toast('文件中没有可导入的数据', true); return; }
+      incoming = incoming.map(normalizeSite);
+
+      var added = 0, mergedKeys = 0;
+      incoming.forEach(function(ns){
+        // 同地址 + 同名 → 合并 Key，避免重复导入
+        var exist = sites.filter(function(s){
+          return s.name === ns.name && s.api === ns.api;
+        })[0];
+        if(exist){
+          ns.keys.forEach(function(k){
+            var dup = exist.keys.some(function(x){ return x.value === k.value; });
+            if(!dup){ exist.keys.push(k); mergedKeys++; }
+          });
+          exist.updatedAt = Date.now();
+        }else{
+          sites.unshift(ns);
+          added++;
+        }
+      });
+      persist().then(function(ok){
+        if(!ok) return;
+        render(); saveUI();
+        toast('导入完成：新增 ' + added + ' 个站点' +
+          (mergedKeys ? '，并入 ' + mergedKeys + ' 个 Key' : ''));
+      });
+    }
+
+    if(data.encrypted && data.ct){
+      var pass = prompt('这是加密备份，请输入导出时使用的口令：');
+      if(pass === null) return;
+      deriveKey(pass, unb64(data.salt), ['decrypt']).then(function(k){
+        return crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(data.iv) }, k, unb64(data.ct));
+      }).then(function(plain){
+        var o = JSON.parse(new TextDecoder().decode(plain));
+        merge(o.sites, o.items);
+      }).catch(function(){ toast('口令错误或文件已损坏', true); });
+    }else if(data.sites || data.items || Array.isArray(data)){
+      merge(data.sites, data.items || (Array.isArray(data) ? data : null));
+    }else{
+      toast('无法识别的备份文件', true);
+    }
+  };
+  fr.readAsText(f);
+});
+
+/* ================= 口令 ================= */
+$('#btnLock').addEventListener('click', function(){
+  if(isLocked()) managePassphrase(); else setPassphrase();
+});
+
+function setPassphrase(){
+  var ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML =
+    '<div class="modal">' +
+      '<h3>设置访问口令</h3>' +
+      '<p>设置后数据将以 AES-256-GCM 加密保存在本机。下次打开此页面需输入口令。</p>' +
+      '<label for="p1">口令</label>' +
+      '<input type="password" id="p1" class="mono" autocomplete="new-password">' +
+      '<label for="p2" style="margin-top:12px">确认口令</label>' +
+      '<input type="password" id="p2" class="mono" autocomplete="new-password">' +
+      '<div class="hint" style="margin-top:10px">口令无法找回。忘记它就等于数据丢失。</div>' +
+      '<div class="hint" id="perr" style="color:#d93b3b;min-height:16px"></div>' +
+      '<div class="row">' +
+        '<button data-r="cancel">取消</button>' +
+        '<button class="primary" data-r="ok">加密保存</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  var close = function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  setTimeout(function(){ ov.querySelector('#p1').focus(); }, 30);
+  ov.addEventListener('click', function(e){
+    if(e.target === ov){ close(); return; }
+    var b = e.target.closest('[data-r]');
+    if(!b) return;
+    if(b.getAttribute('data-r') !== 'ok'){ close(); return; }
+    var p1 = ov.querySelector('#p1').value, p2 = ov.querySelector('#p2').value;
+    var err = ov.querySelector('#perr');
+    if(p1.length < 4){ err.textContent = '口令至少 4 位'; return; }
+    if(p1 !== p2){ err.textContent = '两次输入不一致'; return; }
+    err.textContent = '正在加密…';
+    encryptSites(p1).then(function(){
+      return decryptSites(p1);
+    }).then(function(list){
+      if(!list.length){
+        // 刚加密就解不回内容，说明写入有问题 —— 撤回，保住明文
+        localStorage.removeItem(LS_LOCK);
+        currentSalt = null;
+        savePlain();
+        err.textContent = '加密校验失败，已回退为明文存储';
+        updateStorageHint();
+        return;
+      }
+      sites = list;
+      render(); updateStorageHint(); saveUI();
+      close();
+      toast('已加密保存');
+    }).catch(function(err3){
+      err.textContent = '加密失败，请重试';
+      if(window.console) console.warn('setPassphrase failed:', err3);
+    });
+  });
+}
+
+function managePassphrase(){
+  var ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML =
+    '<div class="modal">' +
+      '<h3>管理访问口令</h3>' +
+      '<p>当前数据已加密。可更换口令，或移除口令恢复为明文存储。</p>' +
+      '<label for="oldP">当前口令</label>' +
+      '<input type="password" id="oldP" class="mono" autocomplete="off">' +
+      '<label for="newP" style="margin-top:12px">新口令（留空 = 移除口令）</label>' +
+      '<input type="password" id="newP" class="mono" autocomplete="off">' +
+      '<div class="hint" id="merr" style="margin-top:9px;color:#d93b3b;min-height:16px"></div>' +
+      '<div class="row">' +
+        '<button data-r="unlock" class="ghost-danger">移除口令</button>' +
+        '<span style="flex:1"></span>' +
+        '<button data-r="cancel">取消</button>' +
+        '<button class="primary" data-r="ok">确定</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  var close = function(){ if(ov.parentNode) document.body.removeChild(ov); };
+  setTimeout(function(){ ov.querySelector('#oldP').focus(); }, 30);
+
+  /* 移除口令：先确认明文落盘成功，再删密文 */
+  function removePass(pass, err){
+    decryptSites(pass).then(function(list){
+      if(!list.length){
+        err.textContent = '解密后数据为空，已取消以防误删';
+        return;
+      }
+      sites = list;
+      if(!savePlain()){
+        err.textContent = '写入明文失败，密文已保留，数据未丢失';
+        return;
+      }
+      localStorage.removeItem(LS_LOCK);
+      currentSalt = null;
+      cryptoKey = null;
+      render(); updateStorageHint(); saveUI();
+      close(); toast('已移除口令，恢复明文存储');
+    }).catch(function(e){
+      err.textContent = '当前口令不正确';
+      if(window.console) console.warn('removePass failed:', e);
+    });
+  }
+
+  ov.addEventListener('click', function(e){
+    if(e.target === ov){ close(); return; }
+    var b = e.target.closest('[data-r]');
+    if(!b) return;
+    var act = b.getAttribute('data-r');
+    if(act === 'cancel'){ close(); return; }
+
+    var oldP = ov.querySelector('#oldP').value;
+    var newP = ov.querySelector('#newP').value;
+    var err = ov.querySelector('#merr');
+    if(!oldP){ err.textContent = '请输入当前口令'; return; }
+
+    if(act === 'unlock'){
+      if(!window.confirm('将移除访问口令，数据改为明文保存在本机。确定继续？')) return;
+      err.textContent = '处理中…';
+      removePass(oldP, err);
+      return;
+    }
+
+    err.textContent = '处理中…';
+    decryptSites(oldP).then(function(list){
+      if(!list.length){
+        err.textContent = '解密后数据为空，已取消以防误删';
+        return;
+      }
+      sites = list;
+      if(!newP){
+        if(!savePlain()){ err.textContent = '写入明文失败，密文已保留'; return; }
+        localStorage.removeItem(LS_LOCK);
+        currentSalt = null;
+        cryptoKey = null;
+        render(); updateStorageHint(); saveUI();
+        close(); toast('已移除口令，恢复明文存储');
+        return;
+      }
+      cryptoKey = null;
+      return encryptSites(newP).then(function(){
+        return decryptSites(newP);
+      }).then(function(l2){
+        if(!l2.length){ err.textContent = '换口令后读回为空，请检查'; return; }
+        sites = l2;
+        render(); updateStorageHint(); saveUI();
+        close(); toast('口令已更换');
+      });
+    }).catch(function(err2){
+      err.textContent = '当前口令不正确，或数据已损坏';
+      if(window.console) console.warn('managePassphrase failed:', err2);
+    });
+  });
+}
+
+/* ================= 解锁门 ================= */
+function unlockGate(){
+  return new Promise(function(resolve){
+    var ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML =
+      '<div class="modal">' +
+        '<h3>🔒 需要口令</h3>' +
+        '<p>数据已加密。请输入访问口令以解锁。</p>' +
+        '<div class="pw">' +
+          '<input type="password" id="lkIn" class="mono" autocomplete="current-password" placeholder="口令" style="padding-right:38px">' +
+          '<button type="button" class="eye" data-r="eye">👁</button>' +
+        '</div>' +
+        '<div class="hint" id="lkErr" style="margin-top:9px;color:#d93b3b;min-height:16px"></div>' +
+        '<div class="row">' +
+          '<button data-r="wipe" class="ghost-danger">清除密文，不再要口令</button>' +
+          '<button class="primary" data-r="ok">解锁</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    var input = ov.querySelector('#lkIn'), errEl = ov.querySelector('#lkErr');
+    setTimeout(function(){ input.focus(); }, 30);
+    function attempt(){
+      var p = input.value;
+      if(!p){ errEl.textContent = '请输入口令'; return; }
+      errEl.textContent = '正在解密…';
+      decryptSites(p).then(function(list){
+        if(!list.length){
+          errEl.textContent = '解密成功但内容为空，可点左下角清除密文重来';
+          return;
+        }
+        sites = list;
+        if(ov.parentNode) document.body.removeChild(ov);
+        resolve();
+      }).catch(function(err){
+        errEl.textContent = '口令不正确，请重试';
+        if(window.console) console.warn('unlock failed:', err);
+        input.select();
+      });
+    }
+    ov.addEventListener('click', function(e){
+      if(e.target.closest('[data-r="eye"]')){
+        input.type = input.type === 'password' ? 'text' : 'password';
+        return;
+      }
+      if(e.target.closest('[data-r="wipe"]')){
+        // 用户明确表示不再需要密文：清掉密文，从空白开始（不触碰其他数据）
+        if(!window.confirm('将删除本机保存的加密数据，且无法恢复。确定继续？')) return;
+        localStorage.removeItem(LS_LOCK);
+        currentSalt = null;
+        localStorage.removeItem(LS_DATA);
+        sites = [];
+        if(ov.parentNode) document.body.removeChild(ov);
+        resolve();
+        return;
+      }
+      if(e.target.closest('[data-r="ok"]')) attempt();
+    });
+    ov.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); attempt(); }
+    });
+  });
+}
+
+/* ================= 启动 ================= */
+/* 顶部的代理状态徽章：一眼看出检测能否绕过跨域。点它可设置/清除代理地址 */
+function renderProxyFlag(){
+  var box = document.querySelector('.head-actions');
+  if(!box) return;
+  var old = box.querySelector('.proxy-flag');
+  if(old) old.remove();
+  var el = document.createElement('span');
+  el.className = 'proxy-flag ' + (HAS_PROXY ? 'on' : 'off');
+  el.textContent = HAS_PROXY ? '🔗 代理已连接' : '⚠ 无代理（直连）';
+  el.title = HAS_PROXY
+    ? '检测请求经由 ' + PROXY_BASE + ' 转发，可绕过浏览器跨域限制（点击可更改）'
+    : '当前没有代理，检测会直连第三方 API，多数会被跨域拦截。点击可填写本地代理地址';
+  el.addEventListener('click', editProxy);
+  box.insertBefore(el, box.firstChild);
+}
+function editProxy(){
+  var cur = PROXY_SAVED || (IS_LOCAL ? location.origin + '/api/probe' : '');
+  var v = prompt(
+    '代理地址（留空 = 关闭代理，检测将直连、多数会被跨域拦截）\n' +
+    '本机默认：' + location.origin + '/api/probe\n\n' +
+    '请粘贴完整地址：',
+    cur
+  );
+  if(v === null) return;
+  v = v.trim();
+  if(v && !/^https?:\/\//i.test(v)){
+    toast('地址需以 http:// 或 https:// 开头', true);
+    return;
+  }
+  if(v && v.charAt(v.length-1) === '/') v = v.slice(0, -1);
+  PROXY_SAVED = v;
+  try{ v ? localStorage.setItem(LS_PROXY, v) : localStorage.removeItem(LS_PROXY); }
+  catch(e){ toast('无法保存该设置', true); return; }
+  PROXY_BASE = v || (IS_LOCAL ? location.origin + '/api/probe' : '');
+  HAS_PROXY = !!PROXY_BASE && /^https?:$/.test(location.protocol);
+  renderProxyFlag();
+  toast(HAS_PROXY ? '代理已开启：' + PROXY_BASE : '已关闭代理，检测将直连');
+}
+
+function boot(){
+  addKeyRow();
+  loadUI();
+  renderProxyFlag();
+
+  if(isLocked()){
+    updateStorageHint();
+    unlockGate().then(function(){
+      render(); updateStorageHint();
+    });
+  }else{
+    var list = readPlain();
+    sites = list || [];
+    render(); updateStorageHint();
+  }
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>

@@ -36,13 +36,17 @@
       transition: transform 0.2s;
     }
     a:hover { transform: translateY(-2px); }
+    .links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   </style>
 </head>
 <body>
   <main class="card">
     <h1>你好，世界 👋</h1>
     <p>这是我的 GitHub Pages 主页</p>
-    <a href="https://github.com/" target="_blank" rel="noopener">我的 GitHub</a>
+    <div class="links">
+      <a href="./vault/">🔐 API 密钥保险箱</a>
+      <a href="https://github.com/" target="_blank" rel="noopener">我的 GitHub</a>
+    </div>
   </main>
 </body>
 </html>
